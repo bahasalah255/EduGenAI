@@ -1,45 +1,64 @@
-**EduGenAI — Local development quickstart**
+# EduGenAI — Developer README
 
-This repository contains a Laravel backend and a Vite + React frontend for generating short language lessons using an AI service.
+This repository contains two main parts:
 
-**Structure**
-- **backend/**: Laravel application (API endpoints)
-- **frontend/**: React app (Vite)
+- `backend/` — Laravel API that forwards prompts to an AI service and returns structured lessons.
+- `frontend/` — Vite + React UI where users enter a topic and receive a generated lesson.
 
-**Prerequisites**
-- PHP 8.1+ with common extensions. On Linux install the SQLite PDO driver: `php-sqlite3` / enable `pdo_sqlite`.
+This README provides a clear local setup guide, useful commands, API examples, and troubleshooting tips.
+
+## Quick overview
+
+- Backend endpoint: POST `http://127.0.0.1:8000/api/generate`
+- Frontend dev server: runs via Vite (default: http://localhost:5173)
+
+## Prerequisites
+
+- PHP 8.1 or newer with common extensions
 - Composer
 - Node.js 18+ and npm
-- (Optional) NVIDIA API key set as `NVIDIA_API_KEY` in backend `.env` when using the upstream AI integration.
+- Optional: NVIDIA API key (set `NVIDIA_API_KEY` in backend `.env`) if you plan to call the upstream AI provider
 
-**Backend — quick setup**
-1. Install PHP dependencies and copy environment file:
+On Ubuntu/Debian install PHP SQLite support (if using SQLite) with:
+
+```bash
+sudo apt-get update
+sudo apt-get install php php-xml php-mbstring php-curl php-sqlite3
+```
+
+## Backend — setup & run
+
+1. Install dependencies and prepare environment
 
 ```bash
 cd backend
 composer install
 cp .env.example .env
-# Set APP_KEY and NVIDIA_API_KEY in .env (or run artisan key:generate then edit .env)
+# Configure .env: set APP_KEY, APP_URL, and NVIDIA_API_KEY if you use the AI provider
 php artisan key:generate
 ```
 
-2. If using SQLite (default dev), ensure the driver is installed and create the DB file:
+2. (Optional) Use SQLite for quick local development
 
 ```bash
 touch database/database.sqlite
-# On Debian/Ubuntu: sudo apt-get install php-sqlite3
+# Ensure your .env sets DB_CONNECTION=sqlite and DB_DATABASE=database/database.sqlite
 ```
 
-3. Run the app locally:
+3. Run migrations (if you add them) and serve the app
 
 ```bash
+php artisan migrate
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-The API endpoint for lesson generation is POST `http://127.0.0.1:8000/api/generate` (see [backend/routes/api.php](backend/routes/api.php)).
+4. Logs
 
-**Frontend — quick setup**
-1. Install dependencies and run dev server:
+- Laravel logs: `backend/storage/logs/laravel.log`
+
+## Frontend — setup & run
+
+1. Install and run
 
 ```bash
 cd frontend
@@ -47,10 +66,36 @@ npm install
 npm run dev
 ```
 
-2. Open the app at the displayed Vite URL (usually http://localhost:5173).
+2. Build for production
 
-**API usage (example)**
-You can test the backend directly with curl:
+```bash
+npm run build
+npm run preview
+```
+
+## Running both (local dev)
+
+Open two terminals (or use tmux):
+
+Terminal 1 — start backend
+
+```bash
+cd backend
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Terminal 2 — start frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend will call the backend at `http://127.0.0.1:8000/api/generate` by default.
+
+## API usage example
+
+Request (JSON):
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/generate \
@@ -58,25 +103,68 @@ curl -X POST http://127.0.0.1:8000/api/generate \
   -d '{"topic":"Present Tense of Regular Verbs"}'
 ```
 
-Expected response is JSON with keys: `topic`, `lesson`, `sentences`, `exercises`, `solutions_arabic`, `questions`, `answers`.
+Response (example):
 
-**Common issues & troubleshooting**
-- 500 / Internal Server Error on `/api/generate`: check the Laravel log at `backend/storage/logs/laravel.log` for stack traces. Common causes:
-  - Missing or invalid `NVIDIA_API_KEY` when the backend calls the upstream AI provider.
-  - PHP missing PDO/SQLite driver (error: "could not find driver"). Fix by installing `php-sqlite3` or configuring a different DB connection.
-  - Middleware/bootstrap errors (if you see "Target class [HandleCors] does not exist"), ensure `bootstrap/app.php` imports `Illuminate\Http\Middleware\HandleCors`.
+```json
+{
+  "topic": "Present Tense of Regular Verbs",
+  "lesson": "German explanation...",
+  "sentences": ["Ich esse jeden Morgen ein Stück Brot."],
+  "exercises": ["Fill the blanks..."],
+  "solutions_arabic": ["الجواب: ..."],
+  "questions": ["Wie konjugiert man ...?"],
+  "answers": ["Antwort ..."]
+}
+```
 
-- Timeout when calling upstream AI (e.g. cURL timeout): the backend now includes a longer timeout and retries, but slow or unreachable upstream endpoints will return a 503 JSON message. Check network connectivity and that the provider endpoint is correct.
+Note: The real response depends on the AI provider and the prompt configuration in `backend/app/Services/AIService.php`.
 
-**Developer notes**
-- Routes: see [backend/routes/api.php](backend/routes/api.php).
-- Lesson controller: [backend/app/Http/Controllers/LessonController.php](backend/app/Http/Controllers/LessonController.php)
-- AI service wrapper: [backend/app/Services/AIService.php](backend/app/Services/AIService.php)
-- Frontend input component: [frontend/src/componenets/Input.jsx](frontend/src/componenets/Input.jsx)
+## Troubleshooting — common issues
 
-If you'd like, I can also:
-- Add a small Postman collection or a runnable test script to hit the API.
-- Add CI checks that lint/build the frontend and backend.
+- "could not find driver": PHP's PDO driver for your configured DB (sqlite/mysql) is missing. Install `php-sqlite3` or `php-mysql` as appropriate and restart PHP/CLI.
+- "Target class [HandleCors] does not exist": Bootstrap middleware import missing. Ensure `bootstrap/app.php` includes `use Illuminate\\Http\\Middleware\\HandleCors;` (this repo patch fixed that earlier).
+- Upstream AI timeout (client shows `cURL error 28`): network or provider problem. The backend now applies a longer timeout and a retry policy, but if the provider is unreachable you will receive a 503 JSON response with a friendly message. Check `NVIDIA_API_KEY`, provider endpoint, and connectivity.
+- 500 Internal Server Error from `api/generate`: check `backend/storage/logs/laravel.log` for stack traces; the controller now reports and returns a clear message when the AI call fails.
+
+## Useful developer commands
+
+- Lint PHP file syntax:
+
+```bash
+php -l backend/app/Services/AIService.php
+php -l backend/app/Http/Controllers/LessonController.php
+```
+
+- List routes:
+
+```bash
+cd backend
+php artisan route:list --path=generate
+```
+
+- Build frontend:
+
+```bash
+cd frontend
+npm run build
+```
+
+## Where to look in the code
+
+- `backend/routes/api.php` — API route definitions
+- `backend/app/Http/Controllers/LessonController.php` — endpoint wiring and error handling
+- `backend/app/Services/AIService.php` — HTTP wrapper to the AI provider (timeouts, retries, prompt)
+- `frontend/src/componenets/Input.jsx` — main input UI and result rendering
+- `frontend/src/componenets/Input.css` — styles for the input page
+
+## Next steps (optional)
+
+- Add a small script (or Postman collection) to exercise the API automatically.
+- Add automated tests that mock the AI provider and validate JSON parsing.
+- Add a CI workflow to run `php -l` and `npm run build` on pull requests.
+
+If you want, I can add a runnable `scripts/test-api.sh` that posts a sample topic and displays the result. Tell me if you'd like that and I'll add it.
+
 <div align="center">
 
 # EduGenAI
