@@ -1,39 +1,88 @@
 <?php
 
 namespace App\Services;
-use Iqbalatma\LaravelServiceRepo\BaseService;
-use Iqbalatma\LaravelServiceRepo\Attributes\ServiceRepository;
 
-//#[ServiceRepository()]
-class AIService extends BaseService
+use RuntimeException;
+use Illuminate\Support\Facades\Http;
+
+class AIService
 {
     public function generate($topic)
     {
-        return [
+                $prompt = <<<'PROMPT'
+You are an expert German teacher and educational content creator.
+
+The user will give you ONLY a lesson topic.
+
+You must generate a structured lesson.
+
+Return ONLY valid JSON (no explanation, no markdown, no extra text).
+
+JSON structure:
+
+{
+    "topic": "string",
+    "lesson": "German explanation of the topic",
+    "sentences": ["5 simple German sentences"],
+    "exercises": ["5 beginner-friendly exercises in German"],
+    "solutions_arabic": ["Arabic explanations/solutions for each exercise"],
+    "questions": ["5 questions"],
+    "answers": ["5 answers"]
+}
+
+Rules:
+- Lesson MUST be in German
+- Sentences MUST be in German
+- Exercises MUST be in German
+- Solutions MUST be in Arabic
+- Questions MUST be simple and clear
+- Answers MUST match questions
+- Return ONLY valid JSON
+- No extra text outside JSON
+PROMPT;
+
+        $response = Http::timeout(90)
+            ->connectTimeout(15)
+            ->retry(2, 1500)
+            ->withHeaders([
+            'Authorization' => 'Bearer ' . env('NVIDIA_API_KEY'),
+            'Content-Type' => 'application/json',
+        ])->post('https://integrate.api.nvidia.com/v1/chat/completions', [
+            'model' => 'meta/llama-3.3-70b-instruct',
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => $prompt
+                ],
+                [
+                    'role' => 'user',
+                    'content' => $topic
+                ]
+            ],
+            'temperature' => 0.2,
+            'top_p' => 0.7,
+            'max_tokens' => 768,
+        ]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('AI provider returned an unexpected response.');
+        }
+
+        $data = $response->json();
+        $content = data_get($data, 'choices.0.message.content');
+
+        if (! is_string($content) || trim($content) === '') {
+            throw new RuntimeException('AI provider returned an empty lesson payload.');
+        }
+
+        return json_decode($content, true) ?: [
             'topic' => $topic,
-            'exercises' => [
-                'Exercice 1...',
-                'Exercice 2...'
-            ],
-            'arabic_solution' => 'شرح بالعربية...',
-            'sentences' => [
-                'Sentence 1',
-                'Sentence 2'
-            ],
-            'questions' => [
-                'question 1',
-                'question 2',
-                'question 3',
-                'question 4',
-                'question 5'
-            ],
-            'answers' => [
-                'answer 1',
-                'answer 2',
-                'answer 3',
-                'answer 4',
-                'answer 5'
-            ]
+            'lesson' => $content,
+            'sentences' => [],
+            'exercises' => [],
+            'solutions_arabic' => [],
+            'questions' => [],
+            'answers' => [],
         ];
     }
 }

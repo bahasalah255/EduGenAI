@@ -8,7 +8,6 @@ export default function Input() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [form, setForm] = useState(false);
 
   const handleForm = async (event) => {
     event.preventDefault();
@@ -24,8 +23,6 @@ export default function Input() {
     setIsSubmitting(true);
     setError("");
     setMessage("");
-    // hide the form immediately when the user submits
-    setForm(true);
 
     try {
       const response = await axios.post("http://127.0.0.1:8000/api/generate", {
@@ -45,6 +42,20 @@ export default function Input() {
   };
 
   const resultsRef = useRef(null);
+
+  const renderList = (items, emptyMessage, className) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return <p className="muted">{emptyMessage}</p>;
+    }
+
+    return (
+      <ul className={className}>
+        {items.map((item, index) => (
+          <li key={`${item}-${index}`}>{item}</li>
+        ))}
+      </ul>
+    );
+  };
 
   const handleExportPDF = async () => {
     if (!resultsRef.current) return;
@@ -70,21 +81,40 @@ export default function Input() {
     }
   };
 
-  return (
-    <main className="input-page">
-        
-      <section className="input-card" aria-labelledby="lesson-generator-title">
-        
-        <div className="input-card__header">
-         {!form ? (
-          <>
+    return (
+      <main className="input-page">
+        <section className="input-shell">
+          <section className="input-hero" aria-labelledby="lesson-generator-title">
             <p className="input-card__eyebrow">Lesson generator</p>
-
-            <h1 id="lesson-generator-title">Create a lesson in seconds</h1>
-
+            <h1 id="lesson-generator-title">Create polished lessons in seconds</h1>
             <p className="input-card__subtitle">
-              Enter a topic and generate a clean lesson draft with exercises and supporting content.
+              Turn a topic into a structured teaching draft with exercises, questions, answers, and Arabic support notes.
             </p>
+
+            <div className="hero-highlights" aria-label="Key benefits">
+              <div className="hero-highlight">
+                <span>Fast</span>
+                <strong>Prompt to draft</strong>
+              </div>
+              <div className="hero-highlight">
+                <span>Structured</span>
+                <strong>Lesson, exercises, review</strong>
+              </div>
+              <div className="hero-highlight">
+                <span>Exportable</span>
+                <strong>PDF-ready output</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="input-card input-card--form" aria-labelledby="lesson-form-title">
+            <div className="input-card__header">
+              <p className="input-card__eyebrow">Start here</p>
+              <h2 id="lesson-form-title">Describe the lesson topic</h2>
+              <p className="input-card__subtitle">
+                Keep it specific. The assistant works best with short topics such as verb tenses, grammar rules, or vocabulary themes.
+              </p>
+            </div>
 
             <form className="input-form" onSubmit={handleForm}>
               <div className="input-form__field">
@@ -110,122 +140,108 @@ export default function Input() {
               {error && <p className="feedback feedback--error">{error}</p>}
               {message && <p className="feedback feedback--success">{message}</p>}
 
-              <button
-                type="submit"
-                className="input-form__button"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Generating..." : "Generate lesson"}
-              </button>
-            </form>
-          </>
-        ) : null}
-    </div>
-  <section className="input-results" aria-live="polite">
-        {result ? (
-          <div className="input-results__card" ref={resultsRef}>
-            <header className="result-header">
-              <h2 className="result-title">Leçon: {result.topic}</h2>
-              <p className="result-subtitle">Generated lesson — organized for teaching and quick review.</p>
-              <div>
-                <button type="button" className="export-button" onClick={handleExportPDF}>Export PDF</button>
+              <div className="input-form__actions">
+                <button
+                  type="submit"
+                  className="input-form__button"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Generating..." : "Generate lesson"}
+                </button>
+                <p className="input-form__hint">
+                  The generated lesson will appear below with an export option.
+                </p>
               </div>
-            </header>
+            </form>
+          </section>
 
-            <div className="result-body">
-              <section className="result-main">
-                <div className="result-section result-exercises">
-                  <h3>Exercises</h3>
-                  {Array.isArray(result.exercises) && result.exercises.length > 0 ? (
-                    <ol className="exercises-list">
-                      {result.exercises.map((exercise, index) => (
-                        <li key={`${exercise}-${index}`}>{exercise}</li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="muted">No exercises returned.</p>
-                  )}
+          <section className="results-panel" aria-live="polite">
+            {result ? (
+              <div className="input-results__card" ref={resultsRef}>
+                <header className="result-header">
+                  <div>
+                    <p className="input-card__eyebrow">Generated output</p>
+                    <h2 className="result-title">{result.topic}</h2>
+                    <p className="result-subtitle">A clean lesson draft organized for teaching and quick review.</p>
+                  </div>
+
+                  <button type="button" className="export-button" onClick={handleExportPDF}>
+                    Export PDF
+                  </button>
+                </header>
+
+                <div className="result-metrics">
+                  <div className="metric-card">
+                    <span>Exercises</span>
+                    <strong>{Array.isArray(result.exercises) ? result.exercises.length : 0}</strong>
+                  </div>
+                  <div className="metric-card">
+                    <span>Sentences</span>
+                    <strong>{Array.isArray(result.sentences) ? result.sentences.length : 0}</strong>
+                  </div>
+                  <div className="metric-card">
+                    <span>Questions</span>
+                    <strong>{Array.isArray(result.questions) ? result.questions.length : 0}</strong>
+                  </div>
                 </div>
 
-                {Array.isArray(result.sentences) && result.sentences.length > 0 ? (
-                  <div className="result-section result-sentences">
+                <div className="result-grid">
+                  <article className="result-card result-card--wide">
+                    <h3>Lesson overview</h3>
+                    <p className="result-copy">{result.lesson || "No lesson returned."}</p>
+                  </article>
+
+                  <article className="result-card">
+                    <h3>Arabic support</h3>
+                    <div className="solution-box">
+                      {Array.isArray(result.solutions_arabic)
+                        ? result.solutions_arabic.map((solution, index) => (
+                            <p key={`${solution}-${index}`}>{solution}</p>
+                          ))
+                        : (result.solutions_arabic || "No solution returned.")}
+                    </div>
+                  </article>
+
+                  <article className="result-card">
+                    <h3>Exercises</h3>
+                    {renderList(result.exercises, "No exercises returned.", "result-list")}
+                  </article>
+
+                  <article className="result-card">
                     <h3>Sentences</h3>
-                    <ul className="sentences-list">
-                      {result.sentences.map((sentence, index) => (
-                        <li key={`${sentence}-${index}`}>{sentence}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
+                    {renderList(result.sentences, "No sentences returned.", "result-list")}
+                  </article>
 
-                {Array.isArray(result.questions) && result.questions.length > 0 && (
-                  <div className="result-section result-questions">
+                  <article className="result-card">
                     <h3>Questions</h3>
-                    <ul className="questions-list">
-                      {result.questions.map((question, index) => (
-                        <li key={`${question}-${index}`}>{question}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                    {renderList(result.questions, "No questions returned.", "result-list")}
+                  </article>
 
-                {result.answers ? (
-                  <div className="result-section result-answers">
+                  <article className="result-card">
                     <h3>Answers</h3>
                     {Array.isArray(result.answers) ? (
-                      <ul className="answers-list">
+                      <ol className="result-list result-list--numbered">
                         {result.answers.map((answer, index) => (
                           <li key={`${answer}-${index}`}>{answer}</li>
                         ))}
-                      </ul>
+                      </ol>
                     ) : (
-                      <p>{String(result.answers)}</p>
+                      <p className="muted">{result.answers || "No answers returned."}</p>
                     )}
-                  </div>
-                ) : null}
-              </section>
-
-              <aside className="result-aside">
-                <div className="result-section result-solution">
-                  <h3>Solution</h3>
-                  <div className="solution-box">{result.arabic_solution || "No solution returned."}</div>
+                  </article>
                 </div>
-              </aside>
-            </div>
-
-            {Array.isArray(result.sentences) && result.sentences.length > 0 ? (
-              <div>
-                <h3>Sentences</h3>
-                {result.sentences.map((sentence, index) => (
-                  <p key={`${sentence}-${index}`}>{sentence}</p>
-                ))}
               </div>
-            ) : null}
-            {Array.isArray(result.questions) && result.questions.length > 0 && (
-              <div>
-                <h3>Questions</h3>
-                {result.questions.map((question, index) => (
-                  <p key={`${question}-${index}`}>{question}</p>
-                ))}
+            ) : (
+              <div className="input-results__card input-results__card--empty">
+                <p className="input-card__eyebrow">Preview</p>
+                <h2>Your generated lesson will appear here</h2>
+                <p className="result-subtitle">
+                  Submit a topic above and this area will fill with the lesson, examples, exercises, and review questions.
+                </p>
               </div>
             )}
-            {result.answers ? (
-              <div>
-                <h3>Answers</h3>
-                {Array.isArray(result.answers) ? (
-                  result.answers.map((answer, index) => (
-                    <p key={`${answer}-${index}`}>{answer}</p>
-                  ))
-                ) : (
-                  <p>{String(result.answers)}</p>
-                )}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-      </section>
-    </section>
-    </main>
-  );
+          </section>
+        </section>
+      </main>
+    );
 }
