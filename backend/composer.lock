@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "36793882908b6cbdd344b5a4840231db",
+    "content-hash": "fd27e8efb5214239fae91085c3fd686d",
     "packages": [
         {
             "name": "brick/math",
@@ -6289,6 +6289,53 @@
                 "source": "https://github.com/hamcrest/hamcrest-php/tree/v2.1.1"
             },
             "time": "2025-04-30T06:54:44+00:00"
+        },
+        {
+            "name": "iqbalatma/laravel-service-repo",
+            "version": "5.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/iqbalatma/laravel-service-repo.git",
+                "reference": "8314847e033c7695b30bcd57573739183cddb355"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/iqbalatma/laravel-service-repo/zipball/8314847e033c7695b30bcd57573739183cddb355",
+                "reference": "8314847e033c7695b30bcd57573739183cddb355",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Iqbalatma\\LaravelServiceRepo\\ServiceRepoProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helper.php"
+                ],
+                "psr-4": {
+                    "Iqbalatma\\LaravelServiceRepo\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "authors": [
+                {
+                    "name": "iqbalatma",
+                    "email": "iqbalatma@gmail.com"
+                }
+            ],
+            "description": "Project for extend base class on laravel with service repo pattern",
+            "support": {
+                "issues": "https://github.com/iqbalatma/laravel-service-repo/issues",
+                "source": "https://github.com/iqbalatma/laravel-service-repo/tree/5.0.0"
+            },
+            "time": "2025-04-09T13:52:29+00:00"
         },
         {
             "name": "laravel/agent-detector",

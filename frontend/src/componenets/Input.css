@@ -1,0 +1,311 @@
+.input-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 32px;
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.1), transparent 28%),
+        linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.input-card {
+    /* Allow the card to expand so results can be wider on large screens */
+    width: min(100%, 1100px);
+    padding: 32px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(14px);
+}
+
+.input-card__header {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.input-card__eyebrow {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #2563eb;
+}
+
+.input-card h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    line-height: 1.1;
+    color: #0f172a;
+}
+
+.input-card__subtitle {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #475569;
+}
+
+.input-form {
+    display: grid;
+    gap: 16px;
+}
+
+.input-form__field {
+    display: grid;
+    gap: 10px;
+}
+
+.input-form__field label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.input-form__field input {
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 1rem;
+    color: #0f172a;
+    outline: none;
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        transform 160ms ease;
+}
+
+.input-form__field input::placeholder {
+    color: #94a3b8;
+}
+
+.input-form__field input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    transform: translateY(-1px);
+}
+
+.input-form__meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.feedback {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.feedback--error {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.feedback--success {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.input-form__button {
+    width: fit-content;
+    padding: 14px 22px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
+    color: #ffffff;
+    font-size: 0.98rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        opacity 160ms ease;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+}
+
+.input-form__button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 36px rgba(37, 99, 235, 0.28);
+}
+
+.input-form__button:disabled {
+    opacity: 0.72;
+    cursor: progress;
+}
+
+@media (max-width: 640px) {
+    .input-page {
+        padding: 18px;
+    }
+
+    .input-card {
+        padding: 24px;
+        border-radius: 20px;
+    }
+
+    .input-form__meta {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .input-form__button {
+        width: 100%;
+    }
+}
+
+/* Results panel styles */
+.input-results {
+    /* Let results span the available card width with comfortable side padding */
+    width: 100%;
+    margin: 28px auto 100px;
+    padding: 0 12px;
+}
+
+.input-results__card {
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.06);
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.result-title {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #04263a;
+    font-family: Georgia, 'Times New Roman', serif;
+    letter-spacing: 0.01em;
+}
+
+.result-subtitle {
+    margin: 0;
+    color: #334155;
+    font-size: 0.98rem;
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+.result-body {
+    display: grid;
+    /* Give the main content more room and a slightly wider aside */
+    grid-template-columns: 1fr 420px;
+    gap: 24px;
+    align-items: start;
+}
+
+.export-button {
+    background: linear-gradient(180deg,#0f172a 0%, #1e3a8a 100%);
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(14, 42, 85, 0.12);
+}
+
+.export-button:hover {
+    transform: translateY(-2px);
+}
+
+.result-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 1rem;
+    color: #04263a;
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+.solution-box {
+    background: linear-gradient(180deg, #fcfbf8 0%, #ffffff 100%);
+    border: 1px solid rgba(2, 6, 23, 0.04);
+    padding: 18px;
+    border-radius: 12px;
+    color: #04263a;
+    line-height: 1.7;
+    box-shadow: 0 8px 22px rgba(2,6,23,0.05);
+    white-space: pre-wrap;
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+.result-main {
+    display: grid;
+    gap: 18px;
+}
+
+.result-aside {
+    position: relative;
+}
+
+.result-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 1rem;
+    color: #0f172a;
+}
+
+.muted {
+    color: #6b7280;
+}
+
+.exercises-list,
+.sentences-list,
+.questions-list,
+.answers-list {
+    margin: 0 0 6px 0;
+    padding-left: 1.1rem;
+}
+
+.exercises-list li,
+.sentences-list li,
+.questions-list li,
+.answers-list li {
+    margin: 8px 0;
+    line-height: 1.5;
+    color: #0f172a;
+}
+
+.solution-box {
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    border: 1px solid rgba(37, 99, 235, 0.08);
+    padding: 16px;
+    border-radius: 12px;
+    color: #0b1220;
+    line-height: 1.6;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    white-space: pre-wrap;
+}
+
+/* Small screens: stack the aside under main */
+@media (max-width: 900px) {
+    .result-body {
+        grid-template-columns: 1fr;
+    }
+
+    .result-aside {
+        order: 2;
+    }
+}
+
+/* Tighter typography for lists */
+.input-results__card h3 {
+    font-weight: 700;
+}
