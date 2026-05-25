@@ -364,6 +364,49 @@
     white-space: pre-wrap;
 }
 
+.exercise-solution-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.exercise-solution-item {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    display: grid;
+    gap: 8px;
+}
+
+.pair-title {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #1d4ed8;
+}
+
+.pair-title--arabic {
+    margin-top: 4px;
+    color: #0369a1;
+}
+
+.pair-exercise,
+.pair-solution {
+    margin: 0;
+    line-height: 1.7;
+    color: #0f172a;
+    white-space: pre-wrap;
+}
+
+.pair-solution {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(224, 242, 254, 0.55);
+    border: 1px solid rgba(2, 132, 199, 0.14);
+}
+
 .solution-box {
     display: grid;
     gap: 10px;

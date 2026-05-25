@@ -1,6 +1,112 @@
-import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import axios from "axios";
 import "./Input.css";
+
+const cleanText = (value) => {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.replace(/\\n/g, "\n").trim();
+};
+
+const tryParseJson = (value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const extractFirstJsonObject = (text) => {
+  if (typeof text !== "string") {
+    return null;
+  }
+
+  const start = text.indexOf("{");
+  if (start === -1) {
+    return null;
+  }
+
+  let depth = 0;
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+
+    if (depth === 0) {
+      const candidate = text.slice(start, i + 1);
+      const parsed = tryParseJson(candidate);
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => cleanText(String(item ?? "")))
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const parsed = tryParseJson(value);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => cleanText(String(item ?? "")))
+        .filter(Boolean);
+    }
+
+    return value
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const normalizeResult = (result) => {
+  if (!result || typeof result !== "object") {
+    return null;
+  }
+
+  let normalized = { ...result };
+
+  if (typeof normalized.lesson === "string") {
+    const embeddedJson = extractFirstJsonObject(normalized.lesson);
+    if (embeddedJson && typeof embeddedJson === "object") {
+      normalized = { ...normalized, ...embeddedJson };
+    }
+  }
+
+  return {
+    topic: cleanText(String(normalized.topic ?? "")),
+    lesson: cleanText(String(normalized.lesson ?? "")),
+    sentences: toArray(normalized.sentences),
+    exercises: toArray(normalized.exercises),
+    solutions_arabic: toArray(normalized.solutions_arabic),
+    questions: toArray(normalized.questions),
+    answers: toArray(normalized.answers),
+  };
+};
+
+const pairExercisesAndSolutions = (exercises, solutions) => {
+  const max = Math.max(exercises.length, solutions.length);
+  return Array.from({ length: max }, (_, index) => ({
+    exercise: exercises[index] ?? "",
+    solution: solutions[index] ?? "",
+    index: index + 1,
+  })).filter((row) => row.exercise || row.solution);
+};
 
 export default function Input() {
   const [lesson, setLesson] = useState("");
@@ -42,6 +148,18 @@ export default function Input() {
   };
 
   const resultsRef = useRef(null);
+  const displayResult = useMemo(() => normalizeResult(result), [result]);
+
+  const exerciseSolutionPairs = useMemo(() => {
+    if (!displayResult) {
+      return [];
+    }
+
+    return pairExercisesAndSolutions(
+      displayResult.exercises,
+      displayResult.solutions_arabic
+    );
+  }, [displayResult]);
 
   const renderList = (items, emptyMessage, className) => {
     if (!Array.isArray(items) || items.length === 0) {
@@ -59,7 +177,9 @@ export default function Input() {
 
   const handleExportPDF = async () => {
     if (!resultsRef.current) return;
-    const topic = (result && result.topic) ? result.topic.replace(/\s+/g, '_') : 'lesson';
+    const topic = displayResult?.topic
+      ? displayResult.topic.replace(/\s+/g, "_")
+      : "lesson";
     try {
       // dynamic imports so build doesn't fail if packages aren't installed yet
       const html2canvas = (await import('html2canvas')).default;
@@ -156,12 +276,12 @@ export default function Input() {
           </section>
 
           <section className="results-panel" aria-live="polite">
-            {result ? (
+            {displayResult ? (
               <div className="input-results__card" ref={resultsRef}>
                 <header className="result-header">
                   <div>
                     <p className="input-card__eyebrow">Generated output</p>
-                    <h2 className="result-title">{result.topic}</h2>
+                    <h2 className="result-title">{displayResult.topic || "Untitled lesson"}</h2>
                     <p className="result-subtitle">A clean lesson draft organized for teaching and quick review.</p>
                   </div>
 
@@ -173,60 +293,67 @@ export default function Input() {
                 <div className="result-metrics">
                   <div className="metric-card">
                     <span>Exercises</span>
-                    <strong>{Array.isArray(result.exercises) ? result.exercises.length : 0}</strong>
+                    <strong>{displayResult.exercises.length}</strong>
                   </div>
                   <div className="metric-card">
                     <span>Sentences</span>
-                    <strong>{Array.isArray(result.sentences) ? result.sentences.length : 0}</strong>
+                    <strong>{displayResult.sentences.length}</strong>
                   </div>
                   <div className="metric-card">
                     <span>Questions</span>
-                    <strong>{Array.isArray(result.questions) ? result.questions.length : 0}</strong>
+                    <strong>{displayResult.questions.length}</strong>
                   </div>
                 </div>
 
                 <div className="result-grid">
                   <article className="result-card result-card--wide">
                     <h3>Lesson overview</h3>
-                    <p className="result-copy">{result.lesson || "No lesson returned."}</p>
-                  </article>
-
-                  <article className="result-card">
-                    <h3>Arabic support</h3>
-                    <div className="solution-box">
-                      {Array.isArray(result.solutions_arabic)
-                        ? result.solutions_arabic.map((solution, index) => (
-                            <p key={`${solution}-${index}`}>{solution}</p>
-                          ))
-                        : (result.solutions_arabic || "No solution returned.")}
-                    </div>
+                    <p className="result-copy">{displayResult.lesson || "No lesson returned."}</p>
                   </article>
 
                   <article className="result-card">
                     <h3>Exercises</h3>
-                    {renderList(result.exercises, "No exercises returned.", "result-list")}
+                    {renderList(displayResult.exercises, "No exercises returned.", "result-list")}
                   </article>
 
                   <article className="result-card">
                     <h3>Sentences</h3>
-                    {renderList(result.sentences, "No sentences returned.", "result-list")}
+                    {renderList(displayResult.sentences, "No sentences returned.", "result-list")}
                   </article>
 
                   <article className="result-card">
                     <h3>Questions</h3>
-                    {renderList(result.questions, "No questions returned.", "result-list")}
+                    {renderList(displayResult.questions, "No questions returned.", "result-list")}
                   </article>
 
                   <article className="result-card">
                     <h3>Answers</h3>
-                    {Array.isArray(result.answers) ? (
+                    {displayResult.answers.length > 0 ? (
                       <ol className="result-list result-list--numbered">
-                        {result.answers.map((answer, index) => (
+                        {displayResult.answers.map((answer, index) => (
                           <li key={`${answer}-${index}`}>{answer}</li>
                         ))}
                       </ol>
                     ) : (
-                      <p className="muted">{result.answers || "No answers returned."}</p>
+                      <p className="muted">No answers returned.</p>
+                    )}
+                  </article>
+
+                  <article className="result-card result-card--wide">
+                    <h3>Exercise + Arabic support</h3>
+                    {exerciseSolutionPairs.length > 0 ? (
+                      <div className="exercise-solution-grid">
+                        {exerciseSolutionPairs.map((pair) => (
+                          <div className="exercise-solution-item" key={`pair-${pair.index}`}>
+                            <p className="pair-title">Exercise {pair.index}</p>
+                            <p className="pair-exercise">{pair.exercise || "No exercise text."}</p>
+                            <p className="pair-title pair-title--arabic">Arabic support</p>
+                            <p className="pair-solution" dir="rtl">{pair.solution || "لا يوجد شرح."}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="muted">No Arabic support returned.</p>
                     )}
                   </article>
                 </div>
