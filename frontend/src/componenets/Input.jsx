@@ -175,6 +175,54 @@ export default function Input() {
     );
   };
 
+  const renderOrdered = (items, emptyMessage, className) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return <p className="muted">{emptyMessage}</p>;
+    }
+
+    return (
+      <ol className={className}>
+        {items.map((item, index) => (
+          <li key={`${item}-${index}`}>{item}</li>
+        ))}
+      </ol>
+    );
+  };
+
+  const renderLessonParagraphs = (text) => {
+    if (!text) return <p className="muted">No lesson returned.</p>;
+    const parts = String(text)
+      .split(/\n\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    return parts.map((p, i) => (
+      <p key={`para-${i}`} className="result-copy__para">{p}</p>
+    ));
+  };
+
+  const renderQAPairs = (questions, answers) => {
+    const max = Math.max(questions.length, answers.length);
+    if (max === 0) return <p className="muted">No questions/answers returned.</p>;
+
+    const rows = Array.from({ length: max }, (_, i) => ({
+      q: questions[i] ?? "",
+      a: answers[i] ?? "",
+      i: i + 1,
+    }));
+
+    return (
+      <div className="qa-grid">
+        {rows.map((r) => (
+          <div className="qa-row" key={`qa-${r.i}`}>
+            <div className="qa-question"><strong>{r.i}.</strong> {r.q}</div>
+            <div className="qa-answer">{r.a}</div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const handleExportPDF = async () => {
     if (!resultsRef.current) return;
     const topic = displayResult?.topic

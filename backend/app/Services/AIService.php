@@ -22,10 +22,12 @@ JSON structure:
 
 {
     "topic": "string",
-    "lesson": "German explanation of the topic",
-    "sentences": ["5 simple sentences in German"],
-    "exercises": ["15 different beginner-friendly exercises in German"],
-    "solutions_arabic": ["15 Arabic corrections, one correction for each exercise"],
+    "lesson": "German explanation of the topic with arabic transalation",
+   "sentences": [
+  "5 simple German sentences with Arabic translation for each sentence"
+],
+    "exercises": ["5 beginner-friendly exercises in German"],
+    "solutions_arabic": ["Arabic explanations/solutions for each exercise"],
     "questions": ["5 questions"],
     "answers": ["5 answers"]
 }
@@ -33,13 +35,8 @@ JSON structure:
 Rules:
 - Lesson MUST be in German
 - Sentences MUST be in German
-- Generate EXACTLY 5 sentences in `sentences`
 - Exercises MUST be in German
 - Solutions MUST be in Arabic
-- Generate EXACTLY 15 exercises in `exercises`
-- All 15 exercises MUST be different from each other
-- Generate EXACTLY 15 Arabic corrections in `solutions_arabic`
-- Each correction in `solutions_arabic` MUST match its exercise by order (exercise 1 -> correction 1, etc.)
 - Questions MUST be simple and clear
 - Answers MUST match questions
 - Return ONLY valid JSON
@@ -66,7 +63,7 @@ PROMPT;
             ],
             'temperature' => 0.2,
             'top_p' => 0.7,
-            'max_tokens' => 1400,
+            'max_tokens' => 768,
         ]);
 
         if (! $response->successful()) {

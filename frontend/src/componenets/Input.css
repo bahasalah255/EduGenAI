@@ -364,6 +364,47 @@
     white-space: pre-wrap;
 }
 
+.result-copy__para {
+    margin: 0 0 12px 0;
+    text-align: left;
+    color: #1f2937;
+    line-height: 1.75;
+}
+
+.result-card h3 {
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+    color: #0f172a;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.qa-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.qa-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.qa-question {
+    color: #0b3a52;
+    font-weight: 700;
+}
+
+.qa-answer {
+    color: #0f172a;
+}
+
 .exercise-solution-grid {
     display: grid;
     gap: 12px;
