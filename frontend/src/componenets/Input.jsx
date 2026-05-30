@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import axios from "axios";
 import "./Input.css";
 
@@ -18,7 +18,23 @@ const tryParseJson = (value) => {
   try {
     return JSON.parse(value);
   } catch {
-    return null;
+    // Try a tolerant parse: fix common issues (single quotes, trailing commas)
+    try {
+      let s = value.trim();
+
+      // Replace smart quotes
+      s = s.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+
+      // Convert single-quoted strings to double quotes when safe
+      s = s.replace(/'([^']*)'/g, '"$1"');
+
+      // Remove trailing commas before closing brackets/braces
+      s = s.replace(/,\s*([}\]])/g, '$1');
+
+      return JSON.parse(s);
+    } catch {
+      return null;
+    }
   }
 };
 
@@ -75,28 +91,257 @@ const toArray = (value) => {
 };
 
 const normalizeResult = (result) => {
-  if (!result || typeof result !== "object") {
+  if (result == null) return null;
+
+  // Unwrap common wrappers: axios may return { data: {...} }
+  let normalized = null;
+
+  if (typeof result === "string") {
+    // The API sometimes returns the whole JSON as a string
+    const embedded = extractFirstJsonObject(result);
+    normalized = embedded && typeof embedded === "object" ? { ...embedded } : { lesson: String(result) };
+  } else if (typeof result === "object" && result.data && typeof result.data === "object") {
+    normalized = { ...result.data };
+  } else if (typeof result === "object") {
+    normalized = { ...result };
+  } else {
     return null;
   }
 
-  let normalized = { ...result };
-
   if (typeof normalized.lesson === "string") {
-    const embeddedJson = extractFirstJsonObject(normalized.lesson);
-    if (embeddedJson && typeof embeddedJson === "object") {
-      normalized = { ...normalized, ...embeddedJson };
+    // If lesson contains a JSON string (possibly double-encoded), try parsing it directly
+    const parsedLessonDirect = tryParseJson(normalized.lesson);
+    if (parsedLessonDirect && typeof parsedLessonDirect === "object") {
+      normalized = { ...normalized, ...parsedLessonDirect };
+    } else {
+      // Try unescaping common escape sequences then extract embedded object
+      const unescaped = String(normalized.lesson)
+        .replace(/\\n/g, "\n")
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'");
+
+      const embeddedJson = extractFirstJsonObject(unescaped);
+      if (embeddedJson && typeof embeddedJson === "object") {
+        normalized = { ...normalized, ...embeddedJson };
+      }
     }
+  }
+
+  // Ensure `lesson` is a readable text. If it still contains embedded JSON, try to extract the inner lesson string.
+  const extractStringValueFromText = (key, text) => {
+    if (!text || typeof text !== 'string') return null;
+      const idx = text.indexOf(`"${key}"`);
+    const idx2 = text.indexOf(`"${key}"`);
+    const pos = Math.max(idx, idx2);
+    const startIndex = pos >= 0 ? pos : text.indexOf(key);
+    if (startIndex === -1) return null;
+
+    // find ':' after the key
+    const colon = text.indexOf(':', startIndex);
+    if (colon === -1) return null;
+
+    // find the first quote after colon
+    let i = colon + 1;
+    while (i < text.length && /\s/.test(text[i])) i++;
+    if (i >= text.length) return null;
+    const quote = text[i];
+    if (quote !== '"' && quote !== "'") return null;
+
+    // parse string value handling escapes
+    let j = i + 1;
+    let out = '';
+    while (j < text.length) {
+      const ch = text[j];
+      if (ch === "\\") {
+        const next = text[j+1] || '';
+        out += next;
+        j += 2;
+        continue;
+      }
+      if (ch === quote) {
+        return out;
+      }
+      out += ch;
+      j++;
+    }
+    return null;
+  };
+
+  if (typeof normalized.lesson === 'string') {
+    const maybe = extractStringValueFromText('lesson', normalized.lesson);
+    if (maybe) {
+      normalized.lesson = maybe;
+    }
+  }
+
+  // Normalize exercise_groups if present (backend now returns grouped exercises)
+  const rawGroups = normalized.exercise_groups || normalized.exerciseGroups || normalized.groups || null;
+  const exercise_groups = Array.isArray(rawGroups)
+    ? rawGroups.map((g) => ({
+        group_title: cleanText(String(g.group_title ?? g.groupTitle ?? "")),
+        exercises: toArray(g.exercises ?? g.items ?? g.text ?? []),
+        solutions_arabic: toArray(g.solutions_arabic ?? g.solutionsArabic ?? g.solutions ?? []),
+      }))
+    : [];
+
+  // Flatten exercises/solutions if top-level arrays are missing
+  const topExercises = toArray(normalized.exercises);
+  const topSolutions = toArray(normalized.solutions_arabic);
+
+  const flatExercises = topExercises.length > 0 ? topExercises : exercise_groups.flatMap((g) => g.exercises || []);
+  const flatSolutions = topSolutions.length > 0 ? topSolutions : exercise_groups.flatMap((g) => g.solutions_arabic || []);
+
+  // Fallback: if still empty, try extracting arrays directly from the lesson string
+  const lessonText = typeof normalized.lesson === "string" ? normalized.lesson : "";
+
+  const extractJsonArrayByKey = (key) => {
+    if (!lessonText) return [];
+    // find key occurrence (with or without quotes)
+    let idx = lessonText.indexOf(`"${key}"`);
+    if (idx === -1) idx = lessonText.indexOf(`'${key}'`);
+    if (idx === -1) idx = lessonText.indexOf(key);
+    if (idx === -1) return [];
+
+    const bracketStart = lessonText.indexOf('[', idx);
+    if (bracketStart === -1) return [];
+
+    // find matching closing bracket with depth counting
+    let depth = 0;
+    let endIndex = -1;
+    for (let i = bracketStart; i < lessonText.length; i += 1) {
+      const ch = lessonText[i];
+      if (ch === '[') depth += 1;
+      else if (ch === ']') {
+        depth -= 1;
+        if (depth === 0) { endIndex = i; break; }
+      }
+    }
+
+    let snippet = '';
+    if (endIndex !== -1) {
+      snippet = lessonText.slice(bracketStart, endIndex + 1);
+    } else {
+      // truncated: take until next key or end
+      const nextKey = lessonText.slice(bracketStart).search(/\n\s*[\"']?[a-zA-Z0-9_\- ]+[\"']?\s*:\s*/);
+      if (nextKey !== -1) snippet = lessonText.slice(bracketStart, bracketStart + nextKey);
+      else snippet = lessonText.slice(bracketStart);
+      snippet = snippet + ']';
+    }
+
+    const parsed = tryParseJson(snippet);
+    if (Array.isArray(parsed)) return parsed.map((it) => cleanText(String(it ?? ""))).filter(Boolean);
+
+    // fallback: extract quoted strings inside snippet
+    const items = [];
+    const qRe = /["']([^"']{1,}?)['"]/g;
+    let m;
+    while ((m = qRe.exec(snippet)) !== null) {
+      if (m[1] && m[1].trim()) items.push(cleanText(m[1]));
+    }
+    // last resort: split on line breaks
+    if (items.length === 0) {
+      return snippet.split(/\r?\n/).map((l) => l.replace(/^[\s\[\],\d\.\-\*]+/, '').trim()).filter(Boolean);
+    }
+    return items;
+  };
+
+  const fallbackExercises = flatExercises.length > 0 ? flatExercises : extractJsonArrayByKey("exercises");
+  const fallbackSolutions = flatSolutions.length > 0 ? flatSolutions : (extractJsonArrayByKey("solutions_arabic").length ? extractJsonArrayByKey("solutions_arabic") : extractJsonArrayByKey("solutions"));
+  const fallbackExercisesFinal = fallbackExercises.length ? fallbackExercises : extractJsonArrayByKey("exercises");
+
+  const fallbackSentences = Array.isArray(normalized.sentences) && normalized.sentences.length > 0
+    ? toArray(normalized.sentences)
+    : extractJsonArrayByKey("sentences");
+
+  const fallbackQuestions = Array.isArray(normalized.questions) && normalized.questions.length > 0
+    ? toArray(normalized.questions)
+    : extractJsonArrayByKey("questions");
+
+  const fallbackAnswers = Array.isArray(normalized.answers) && normalized.answers.length > 0
+    ? toArray(normalized.answers)
+    : extractJsonArrayByKey("answers");
+
+  // Final recovery: if top-level arrays are empty but `lesson` contains a JSON object,
+  // parse that object and prefer its arrays (covers the payload shape you pasted).
+  try {
+    const needsRecovery = (
+      (!fallbackExercises || fallbackExercises.length === 0) ||
+      (!fallbackSentences || fallbackSentences.length === 0) ||
+      (!fallbackSolutions || fallbackSolutions.length === 0) ||
+      (!fallbackQuestions || fallbackQuestions.length === 0) ||
+      (!fallbackAnswers || fallbackAnswers.length === 0)
+    );
+
+    if (needsRecovery && typeof normalized.lesson === 'string') {
+      // try direct parse first
+      let inner = tryParseJson(normalized.lesson);
+      if (!inner) {
+        const unescaped = String(normalized.lesson).replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\'/g, "'");
+        inner = extractFirstJsonObject(unescaped) || tryParseJson(unescaped);
+      }
+
+      if (inner && typeof inner === 'object') {
+        // prefer inner arrays when available
+        const innerExercises = Array.isArray(inner.exercises) ? inner.exercises.map((it) => cleanText(String(it ?? ""))).filter(Boolean) : [];
+        const innerSentences = Array.isArray(inner.sentences) ? inner.sentences.map((it) => cleanText(String(it ?? ""))).filter(Boolean) : [];
+        const innerSolutions = Array.isArray(inner.solutions_arabic) ? inner.solutions_arabic.map((it) => cleanText(String(it ?? ""))).filter(Boolean) : (Array.isArray(inner.solutions) ? inner.solutions.map((it) => cleanText(String(it ?? ""))).filter(Boolean) : []);
+        const innerQuestions = Array.isArray(inner.questions) ? inner.questions.map((it) => cleanText(String(it ?? ""))).filter(Boolean) : [];
+        const innerAnswers = Array.isArray(inner.answers) ? inner.answers.map((it) => cleanText(String(it ?? ""))).filter(Boolean) : [];
+
+        if ((!fallbackExercises || fallbackExercises.length === 0) && innerExercises.length > 0) fallbackExercises.splice(0, fallbackExercises.length, ...innerExercises);
+        if ((!fallbackSentences || fallbackSentences.length === 0) && innerSentences.length > 0) fallbackSentences.splice(0, fallbackSentences.length, ...innerSentences);
+        if ((!fallbackSolutions || fallbackSolutions.length === 0) && innerSolutions.length > 0) fallbackSolutions.splice(0, fallbackSolutions.length, ...innerSolutions);
+        if ((!fallbackQuestions || fallbackQuestions.length === 0) && innerQuestions.length > 0) fallbackQuestions.splice(0, fallbackQuestions.length, ...innerQuestions);
+        if ((!fallbackAnswers || fallbackAnswers.length === 0) && innerAnswers.length > 0) fallbackAnswers.splice(0, fallbackAnswers.length, ...innerAnswers);
+        // if the lesson text itself is wrapped, prefer inner.lesson
+        if (typeof inner.lesson === 'string' && inner.lesson.trim()) normalized.lesson = inner.lesson;
+      }
+    }
+  } catch (e) {
+    // non-fatal: continue with whatever we have
   }
 
   return {
     topic: cleanText(String(normalized.topic ?? "")),
     lesson: cleanText(String(normalized.lesson ?? "")),
-    sentences: toArray(normalized.sentences),
-    exercises: toArray(normalized.exercises),
-    solutions_arabic: toArray(normalized.solutions_arabic),
-    questions: toArray(normalized.questions),
-    answers: toArray(normalized.answers),
+    sentences: fallbackSentences,
+    exercises: (fallbackExercises.length ? fallbackExercises : fallbackExercisesFinal),
+    solutions_arabic: fallbackSolutions,
+    questions: fallbackQuestions,
+    answers: fallbackAnswers,
+    exercise_groups,
   };
+};
+
+// Attempt to unwrap API response early so UI receives top-level arrays when possible
+const unwrapApiResponse = (data) => {
+  if (!data || typeof data !== 'object') return data;
+  const out = { ...data };
+
+  try {
+    if (typeof out.lesson === 'string') {
+      // Try direct parse
+      let parsed = tryParseJson(out.lesson);
+
+      // Try unescaping and extracting embedded object
+      if (!parsed) {
+        const unescaped = String(out.lesson).replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\'/g, "'");
+        parsed = extractFirstJsonObject(unescaped) || tryParseJson(unescaped);
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        // Merge parsed into out, prefer parsed values for arrays
+        const merged = { ...out, ...parsed };
+        // ensure lesson text is a string (prefer parsed.lesson if present)
+        merged.lesson = typeof parsed.lesson === 'string' ? parsed.lesson : out.lesson;
+        return merged;
+      }
+    }
+  } catch (e) {
+    // swallow
+  }
+
+  return out;
 };
 
 const pairExercisesAndSolutions = (exercises, solutions) => {
@@ -134,8 +379,10 @@ export default function Input() {
       const response = await axios.post("http://127.0.0.1:8000/api/generate", {
         topic: trimmedLesson,
       });
-      setResult(response.data ?? null);
-      console.log(response.data);
+      const unwrapped = unwrapApiResponse(response.data ?? null);
+      const normalizedResult = normalizeResult(unwrapped ?? null);
+      setResult(normalizedResult ? { ...normalizedResult, __normalized: true } : (unwrapped ?? null));
+      console.log('raw response:', response.data);
       setMessage("Lesson generated successfully.");
     } catch (requestError) {
       setError(
@@ -147,19 +394,46 @@ export default function Input() {
     }
   };
 
-  const resultsRef = useRef(null);
-  const displayResult = useMemo(() => normalizeResult(result), [result]);
+  const displayResult = useMemo(() => {
+    if (!result) return null;
+    if (result.__normalized) return normalizeResult(result) || result;
+    return normalizeResult(result);
+  }, [result]);
+
+  // For UI we show exactly 15 exercises (clean view). The full data
+  // (including grouped exercises) is still sent to the backend for PDF export.
+  const displayExercises = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.exercises)
+      ? displayResult.exercises.slice(0, 15)
+      : [];
+  }, [displayResult]);
+
+  const displaySentences = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.sentences) ? displayResult.sentences : [];
+  }, [displayResult]);
+
+  const displayQuestions = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.questions) ? displayResult.questions : [];
+  }, [displayResult]);
+
+  const displayAnswers = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.answers) ? displayResult.answers : [];
+  }, [displayResult]);
+
+  const displaySolutions = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.solutions_arabic)
+      ? displayResult.solutions_arabic.slice(0, 15)
+      : [];
+  }, [displayResult]);
 
   const exerciseSolutionPairs = useMemo(() => {
-    if (!displayResult) {
-      return [];
-    }
-
-    return pairExercisesAndSolutions(
-      displayResult.exercises,
-      displayResult.solutions_arabic
-    );
-  }, [displayResult]);
+    return pairExercisesAndSolutions(displayExercises, displaySolutions);
+  }, [displayExercises, displaySolutions]);
 
   const renderList = (items, emptyMessage, className) => {
     if (!Array.isArray(items) || items.length === 0) {
@@ -224,28 +498,32 @@ export default function Input() {
   };
 
   const handleExportPDF = async () => {
-    if (!resultsRef.current) return;
     const topic = displayResult?.topic
       ? displayResult.topic.replace(/\s+/g, "_")
       : "lesson";
     try {
-      // dynamic imports so build doesn't fail if packages aren't installed yet
-      const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
+      // send a clean payload to the backend (remove internal flags)
+      const payload = { ...displayResult } || {};
+      delete payload.__normalized;
 
-      const node = resultsRef.current;
-      const canvas = await html2canvas(node, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
+      const response = await axios.post(
+        "http://127.0.0.1:8000/api/export-pdf",
+        payload,
+        { responseType: "blob" }
+      );
 
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${topic}.pdf`);
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${topic}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       console.error('Export PDF failed', err);
-      setError('Unable to export PDF. Make sure `html2canvas` and `jspdf` are installed.');
+      setError('Unable to export PDF from the backend right now. Please try again.');
     }
   };
 
@@ -325,7 +603,7 @@ export default function Input() {
 
           <section className="results-panel" aria-live="polite">
             {displayResult ? (
-              <div className="input-results__card" ref={resultsRef}>
+              <div className="input-results__card">
                 <header className="result-header">
                   <div>
                     <p className="input-card__eyebrow">Generated output</p>
@@ -341,7 +619,7 @@ export default function Input() {
                 <div className="result-metrics">
                   <div className="metric-card">
                     <span>Exercises</span>
-                    <strong>{displayResult.exercises.length}</strong>
+                    <strong>{displayExercises.length}</strong>
                   </div>
                   <div className="metric-card">
                     <span>Sentences</span>
@@ -356,29 +634,37 @@ export default function Input() {
                 <div className="result-grid">
                   <article className="result-card result-card--wide">
                     <h3>Lesson overview</h3>
-                    <p className="result-copy">{displayResult.lesson || "No lesson returned."}</p>
+                    {renderLessonParagraphs(displayResult.lesson)}
                   </article>
 
                   <article className="result-card">
                     <h3>Exercises</h3>
-                    {renderList(displayResult.exercises, "No exercises returned.", "result-list")}
+                    {displayExercises.length > 0 ? (
+                      <ol className="result-list result-list--numbered">
+                        {displayExercises.map((item, index) => (
+                          <li key={`ex-${index}`}>{item}</li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="muted">No exercises returned.</p>
+                    )}
                   </article>
 
                   <article className="result-card">
                     <h3>Sentences</h3>
-                    {renderList(displayResult.sentences, "No sentences returned.", "result-list")}
+                    {renderList(displaySentences, "No sentences returned.", "result-list")}
                   </article>
 
                   <article className="result-card">
                     <h3>Questions</h3>
-                    {renderList(displayResult.questions, "No questions returned.", "result-list")}
+                    {renderList(displayQuestions, "No questions returned.", "result-list")}
                   </article>
 
                   <article className="result-card">
                     <h3>Answers</h3>
-                    {displayResult.answers.length > 0 ? (
+                    {displayAnswers.length > 0 ? (
                       <ol className="result-list result-list--numbered">
-                        {displayResult.answers.map((answer, index) => (
+                        {displayAnswers.map((answer, index) => (
                           <li key={`${answer}-${index}`}>{answer}</li>
                         ))}
                       </ol>
@@ -393,8 +679,7 @@ export default function Input() {
                       <div className="exercise-solution-grid">
                         {exerciseSolutionPairs.map((pair) => (
                           <div className="exercise-solution-item" key={`pair-${pair.index}`}>
-                            <p className="pair-title">Exercise {pair.index}</p>
-                            <p className="pair-exercise">{pair.exercise || "No exercise text."}</p>
+                            <p className="pair-title">{pair.index}. {pair.exercise || "No exercise text."}</p>
                             <p className="pair-title pair-title--arabic">Arabic support</p>
                             <p className="pair-solution" dir="rtl">{pair.solution || "لا يوجد شرح."}</p>
                           </div>
