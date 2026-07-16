@@ -94,7 +94,7 @@ const normalizeResult = (result) => {
   if (result == null) return null;
 
   // Unwrap common wrappers: axios may return { data: {...} }
-  let normalized = null;
+  let normalized;
 
   if (typeof result === "string") {
     // The API sometimes returns the whole JSON as a string
@@ -130,9 +130,8 @@ const normalizeResult = (result) => {
   // Ensure `lesson` is a readable text. If it still contains embedded JSON, try to extract the inner lesson string.
   const extractStringValueFromText = (key, text) => {
     if (!text || typeof text !== 'string') return null;
-      const idx = text.indexOf(`"${key}"`);
-    const idx2 = text.indexOf(`"${key}"`);
-    const pos = Math.max(idx, idx2);
+
+    const pos = text.indexOf(`"${key}"`);
     const startIndex = pos >= 0 ? pos : text.indexOf(key);
     if (startIndex === -1) return null;
 
@@ -217,16 +216,9 @@ const normalizeResult = (result) => {
       }
     }
 
-    let snippet = '';
-    if (endIndex !== -1) {
-      snippet = lessonText.slice(bracketStart, endIndex + 1);
-    } else {
-      // truncated: take until next key or end
-      const nextKey = lessonText.slice(bracketStart).search(/\n\s*[\"']?[a-zA-Z0-9_\- ]+[\"']?\s*:\s*/);
-      if (nextKey !== -1) snippet = lessonText.slice(bracketStart, bracketStart + nextKey);
-      else snippet = lessonText.slice(bracketStart);
-      snippet = snippet + ']';
-    }
+    const snippet = endIndex !== -1
+      ? lessonText.slice(bracketStart, endIndex + 1)
+      : `${lessonText.slice(bracketStart)}]`;
 
     const parsed = tryParseJson(snippet);
     if (Array.isArray(parsed)) return parsed.map((it) => cleanText(String(it ?? ""))).filter(Boolean);
@@ -240,7 +232,7 @@ const normalizeResult = (result) => {
     }
     // last resort: split on line breaks
     if (items.length === 0) {
-      return snippet.split(/\r?\n/).map((l) => l.replace(/^[\s\[\],\d\.\-\*]+/, '').trim()).filter(Boolean);
+      return snippet.split(/\r?\n/).map((l) => l.replace(/^[\s\],\d.*-]+/, '').trim()).filter(Boolean);
     }
     return items;
   };
@@ -297,7 +289,7 @@ const normalizeResult = (result) => {
         if (typeof inner.lesson === 'string' && inner.lesson.trim()) normalized.lesson = inner.lesson;
       }
     }
-  } catch (e) {
+  } catch {
     // non-fatal: continue with whatever we have
   }
 
@@ -337,7 +329,7 @@ const unwrapApiResponse = (data) => {
         return merged;
       }
     }
-  } catch (e) {
+  } catch {
     // swallow
   }
 
@@ -351,6 +343,75 @@ const pairExercisesAndSolutions = (exercises, solutions) => {
     solution: solutions[index] ?? "",
     index: index + 1,
   })).filter((row) => row.exercise || row.solution);
+};
+
+const buildLocalFallbackLesson = (topic) => {
+  const topicLabel = topic?.trim() || "German grammar";
+
+  return {
+    topic: topicLabel,
+    lesson: [
+      `Thema: ${topicLabel}`,
+      "شرح عربي: هذا درس محلي احتياطي يظهر عند تعذر الاتصال بالخادم، لكنه يبقى منسقًا ويحتوي على تمارين وحلول عربية.",
+      "German note: Use this as a clean draft until the live API becomes available again.",
+      "Exam Tip: راجع القاعدة مع أمثلة قصيرة قبل الانتقال إلى التمارين الأطول.",
+    ].join("\n\n"),
+    sentences: [
+      `Ich übe heute das Thema ${topicLabel}.`,
+      "Die Lehrerin erklärt die Regel langsam und deutlich.",
+      "Wir wiederholen die Beispiele im Kurs gemeinsam.",
+      "Der Test hilft mir, die Regel besser zu verstehen.",
+      "Am Ende schreibe ich die Lösung noch einmal auf.",
+    ],
+    exercises: [
+      "Ergänze den Satz: Ich lese ___ Text.",
+      "Wähle die richtige Form: Das ist ___ gute Idee.",
+      "Setze ein: Wir brauchen ___ Antwort.",
+      "Schreibe den Satz mit dem Thema in einem eigenen Beispiel.",
+      "Korrigiere den Fehler und erkläre ihn kurz auf Arabisch.",
+    ],
+    solutions_arabic: [
+      "الإجابة: den. السبب: المطلوب هنا أداة مناسبة داخل السياق النحوي.",
+      "الإجابة: eine. السبب: هذه صيغة صحيحة مع الاسم المؤنث في هذا المثال.",
+      "الإجابة: eine. السبب: التوافق بين الأداة والاسم هو الأساس هنا.",
+      "الإجابة: اصنع جملة جديدة بنفس القاعدة مع مثال واقعي من حياتك اليومية.",
+      "الإجابة: حدّد الخطأ أولًا ثم اشرح لماذا كان التركيب غير صحيح.",
+    ],
+    questions: [
+      "Was ist das Thema dieser Lektion?",
+      "Warum ist die Regel nützlich?",
+      "Wie kann man die Regel gut üben?",
+    ],
+    answers: [
+      topicLabel,
+      "Sie hilft beim Sprechen, Schreiben und in Prüfungen.",
+      "Mit kurzen Beispielen, Wiederholung und Korrektur auf Arabisch.",
+    ],
+    exercise_groups: [
+      {
+        group_title: "A2 Lückentext",
+        exercises: [
+          "Ergänze: Ich sehe ___ Film.",
+          "Ergänze: Das ist ___ interessante Aufgabe.",
+        ],
+        solutions_arabic: [
+          "الحل: den. السبب: يجب اختيار الشكل الصحيح وفق القاعدة داخل الجملة.",
+          "الحل: eine. السبب: التركيب يحتاج أداة نكرة مع صفة مناسبة.",
+        ],
+      },
+      {
+        group_title: "B1 Satzbildung",
+        exercises: [
+          "Bilde einen Satz mit dem Thema ${topicLabel}.",
+          "Erkläre die Regel in einem kurzen Satz.",
+        ],
+        solutions_arabic: [
+          "الحل: اكتب جملة صحيحة نحويًا مع مثال واضح ومناسب للدرس.",
+          "الحل: اشرح القاعدة بالعربية ثم اربطها بالمثال الألماني.",
+        ],
+      },
+    ],
+  };
 };
 
 export default function Input() {
@@ -384,11 +445,11 @@ export default function Input() {
       setResult(normalizedResult ? { ...normalizedResult, __normalized: true } : (unwrapped ?? null));
       console.log('raw response:', response.data);
       setMessage("Lesson generated successfully.");
-    } catch (requestError) {
-      setError(
-        requestError?.response?.data?.message ||
-        "Unable to generate the lesson right now. Please try again."
-      );
+    } catch {
+      const fallbackLesson = buildLocalFallbackLesson(trimmedLesson);
+      setResult({ ...fallbackLesson, __normalized: true });
+      setMessage("Backend unavailable, so an offline draft was created instead.");
+      setError("");
     } finally {
       setIsSubmitting(false);
     }
@@ -449,20 +510,6 @@ export default function Input() {
     );
   };
 
-  const renderOrdered = (items, emptyMessage, className) => {
-    if (!Array.isArray(items) || items.length === 0) {
-      return <p className="muted">{emptyMessage}</p>;
-    }
-
-    return (
-      <ol className={className}>
-        {items.map((item, index) => (
-          <li key={`${item}-${index}`}>{item}</li>
-        ))}
-      </ol>
-    );
-  };
-
   const renderLessonParagraphs = (text) => {
     if (!text) return <p className="muted">No lesson returned.</p>;
     const parts = String(text)
@@ -475,26 +522,40 @@ export default function Input() {
     ));
   };
 
-  const renderQAPairs = (questions, answers) => {
-    const max = Math.max(questions.length, answers.length);
-    if (max === 0) return <p className="muted">No questions/answers returned.</p>;
+  const appendValue = (form, name, value) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value == null ? "" : String(value);
+    form.appendChild(input);
+  };
 
-    const rows = Array.from({ length: max }, (_, i) => ({
-      q: questions[i] ?? "",
-      a: answers[i] ?? "",
-      i: i + 1,
-    }));
+  const appendArray = (form, name, values) => {
+    if (!Array.isArray(values)) return;
 
-    return (
-      <div className="qa-grid">
-        {rows.map((r) => (
-          <div className="qa-row" key={`qa-${r.i}`}>
-            <div className="qa-question"><strong>{r.i}.</strong> {r.q}</div>
-            <div className="qa-answer">{r.a}</div>
-          </div>
-        ))}
-      </div>
-    );
+    values.forEach((value, index) => {
+      if (Array.isArray(value)) {
+        appendArray(form, `${name}[${index}]`, value);
+        return;
+      }
+
+      if (value && typeof value === "object") {
+        Object.entries(value).forEach(([key, nestedValue]) => {
+          if (Array.isArray(nestedValue)) {
+            appendArray(form, `${name}[${index}][${key}]`, nestedValue);
+          } else if (nestedValue && typeof nestedValue === "object") {
+            Object.entries(nestedValue).forEach(([childKey, childValue]) => {
+              appendValue(form, `${name}[${index}][${key}][${childKey}]`, childValue);
+            });
+          } else {
+            appendValue(form, `${name}[${index}][${key}]`, nestedValue);
+          }
+        });
+        return;
+      }
+
+      appendValue(form, `${name}[${index}]`, value);
+    });
   };
 
   const handleExportPDF = async () => {
@@ -502,27 +563,29 @@ export default function Input() {
       ? displayResult.topic.replace(/\s+/g, "_")
       : "lesson";
     try {
-      // send a clean payload to the backend (remove internal flags)
-      const payload = { ...displayResult } || {};
+      const payload = displayResult ? { ...displayResult } : {};
       delete payload.__normalized;
 
-      const response = await axios.post(
-        "http://127.0.0.1:8000/api/export-pdf",
-        payload,
-        { responseType: "blob" }
-      );
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "http://127.0.0.1:8000/api/export-pdf";
+      form.target = "_blank";
+      form.style.display = "none";
 
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `${topic}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (err) {
-      console.error('Export PDF failed', err);
+      appendValue(form, "topic", payload.topic ?? topic);
+      appendValue(form, "lesson", payload.lesson ?? "");
+      appendArray(form, "sentences", payload.sentences ?? []);
+      appendArray(form, "questions", payload.questions ?? []);
+      appendArray(form, "answers", payload.answers ?? []);
+      appendArray(form, "exercise_groups", payload.exercise_groups ?? []);
+
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+      setError("");
+      setMessage("PDF is being generated by the backend DomPDF renderer.");
+    } catch (error) {
+      console.error('Export PDF failed', error);
       setError('Unable to export PDF from the backend right now. Please try again.');
     }
   };
@@ -674,19 +737,19 @@ export default function Input() {
                   </article>
 
                   <article className="result-card result-card--wide">
-                    <h3>Exercise + Arabic support</h3>
+                    <h3>Exercise corrections</h3>
                     {exerciseSolutionPairs.length > 0 ? (
                       <div className="exercise-solution-grid">
                         {exerciseSolutionPairs.map((pair) => (
                           <div className="exercise-solution-item" key={`pair-${pair.index}`}>
                             <p className="pair-title">{pair.index}. {pair.exercise || "No exercise text."}</p>
-                            <p className="pair-title pair-title--arabic">Arabic support</p>
+                            <p className="pair-title pair-title--arabic">Correction and Arabic explanation</p>
                             <p className="pair-solution" dir="rtl">{pair.solution || "لا يوجد شرح."}</p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="muted">No Arabic support returned.</p>
+                      <p className="muted">No corrections returned.</p>
                     )}
                   </article>
                 </div>

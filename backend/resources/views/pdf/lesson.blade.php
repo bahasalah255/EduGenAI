@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { margin: 36px 40px; }
+        @page { margin: 42px 40px 40px; }
         @page {
             @bottom-right {
                 content: "Page " counter(page) " / " counter(pages);
                 font-size: 9px;
-                color: #94a3b8;
+                color: #6b7280;
             }
         }
 
         body {
             font-family: DejaVu Sans, sans-serif;
-            color: #152033;
-            font-size: 11.5px;
-            line-height: 1.55;
+            color: #1f2937;
+            font-size: 11px;
+            line-height: 1.6;
             background: #ffffff;
         }
 
@@ -33,6 +33,8 @@
             align-items: center;
             font-size: 10px;
             color: #475569;
+            border-bottom: 1px solid #dbe3ee;
+            padding-bottom: 6px;
         }
 
         .doc-footer {
@@ -51,42 +53,42 @@
             position: relative;
             border-radius: 8px;
             overflow: hidden;
-            border: 1px solid #e6eef9;
-            background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
+            border: 1px solid #dbe3ee;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
             padding: 28px 36px;
         }
 
-        .cover-band { height: 94px; background: linear-gradient(90deg, #1f3c88 0%, #3c7be0 100%); }
-        .cover-inner { padding: 22px 24px 18px; }
+        .cover-band { height: 18px; background: linear-gradient(90deg, #17324d 0%, #2f5d88 100%); }
+        .cover-inner { padding: 30px 24px 18px; }
 
         .eyebrow {
             margin: 0;
-            color: #dbeafe;
-            font-size: 10px;
+            color: #1d4ed8;
+            font-size: 9px;
             font-weight: 800;
             letter-spacing: 0.18em;
             text-transform: uppercase;
         }
 
         .cover-title {
-            margin: 4px 0 6px;
-            font-size: 28px;
-            line-height: 1.05;
+            margin: 4px 0 8px;
+            font-size: 30px;
+            line-height: 1.08;
             font-weight: 800;
             color: #0f172a;
         }
 
         .cover-subtitle {
-            margin: 0 0 16px;
+            margin: 0 0 18px;
             font-size: 12px;
-            color: #475569;
+            color: #334155;
         }
 
-        .cover-grid { width: 100%; border-collapse: separate; border-spacing: 10px; margin-bottom: 8px; }
+        .cover-grid { width: 100%; border-collapse: separate; border-spacing: 10px; margin-bottom: 12px; }
         .cover-card {
-            border: 1px solid #dbe4f3;
-            border-radius: 14px;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            border: 1px solid #d9e2ec;
+            border-radius: 12px;
+            background: #ffffff;
             padding: 12px 14px;
             vertical-align: top;
         }
@@ -94,33 +96,103 @@
             display: block;
             margin-bottom: 6px;
             color: #64748b;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 800;
             letter-spacing: 0.18em;
             text-transform: uppercase;
         }
         .cover-card-value { display: block; font-size: 12px; color: #0f172a; font-weight: 700; }
 
+        .meta-strip {
+            border: 1px solid #dbe3ee;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+        }
+
+        .meta-grid {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 8px;
+        }
+
+        .meta-grid td {
+            border: 1px solid #dbe3ee;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #ffffff;
+            vertical-align: top;
+        }
+
+        .meta-label {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-weight: 800;
+        }
+
+        .meta-value {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
         .panel {
             margin: 0 0 16px;
             padding: 16px 18px;
-            border: 1px solid #dde6f2;
-            border-radius: 16px;
+            border: 1px solid #dbe3ee;
+            border-radius: 12px;
             background: #ffffff;
             page-break-inside: avoid;
         }
 
         .panel-title {
             margin: 0 0 12px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 800;
             letter-spacing: 0.14em;
             text-transform: uppercase;
         }
-        .panel-title.blue { color: #2563eb; }
+        .panel-title.blue { color: #1d4ed8; }
         .panel-title.green { color: #0f766e; }
-        .panel-title.orange { color: #c2410c; }
-        .panel-title.purple { color: #7c3aed; }
+        .panel-title.orange { color: #b45309; }
+        .panel-title.purple { color: #6d28d9; }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 0 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-index {
+            color: #1d4ed8;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .section-heading {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.25;
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .section-subtitle {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 10px;
+        }
 
         .panel-note { margin: 0; color: #334155; white-space: pre-wrap; }
 
@@ -140,9 +212,9 @@
         .mini-table th,
         .qa-table th,
         .exercise-table th {
-            background: linear-gradient(90deg, #f1f8ff, #fbfdff);
+            background: #f8fafc;
             color: #0b1220;
-            font-size: 10px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }
@@ -161,8 +233,25 @@
         .solution-box {
             padding: 10px 12px;
             border-radius: 10px;
-            background: #f8fbff;
-            border: 1px solid #dbe4f3;
+            background: #f8fafc;
+            border: 1px solid #dbe3ee;
+        }
+
+        .callout {
+            border-left: 3px solid #1d4ed8;
+            background: #f8fafc;
+            padding: 10px 12px;
+            margin-top: 10px;
+        }
+
+        .callout-title {
+            display: block;
+            margin-bottom: 4px;
+            color: #1d4ed8;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
         }
 
         .arabic {
@@ -178,7 +267,7 @@
             width: 72px;
             height: 72px;
             border-radius: 8px;
-            background: linear-gradient(90deg,#1d4ed8,#3b82f6);
+            background: linear-gradient(90deg,#17324d,#2f5d88);
             color: #fff;
             display:flex;
             align-items:center;
@@ -212,9 +301,29 @@
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }
+
+        .summary-block {
+            border: 1px solid #dbe3ee;
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: #ffffff;
+            margin-bottom: 12px;
+        }
+
+        .summary-list {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .summary-list li {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
+    @php
+        $topic = $lesson['topic'] ?? 'Lesson';
+    @endphp
     <div class="doc-header">
         <div class="doc-header__left">
             <strong>{{ $topic }}</strong>
@@ -223,7 +332,6 @@
     </div>
     <div class="doc-footer">&nbsp;</div>
     @php
-        $topic = $lesson['topic'] ?? 'Lesson';
         $lessonText = $lesson['lesson'] ?? 'No lesson text provided.';
         $sentences = is_array($lesson['sentences'] ?? null) ? $lesson['sentences'] : [];
         $questions = is_array($lesson['questions'] ?? null) ? $lesson['questions'] : [];
@@ -264,8 +372,8 @@
             <h1 class="cover-title">{{ $topic }}</h1>
             <div style="display:flex; align-items:center; justify-content:space-between;">
                 <div style="flex:1;">
-                    <p class="cover-subtitle">Intensive German lesson PDF with academic layout, grouped exercises, and Arabic explanations.</p>
-                    <p class="cover-meta">Author: Auto-generated • Level: A1-B1 • {{ date('Y') }}</p>
+                    <p class="cover-subtitle">Academic German as a Foreign Language workbook with structured explanation, correction tables, and Arabic support notes.</p>
+                    <p class="cover-meta">Author: VIZARTTES • Level: A2-B1 • {{ date('Y') }}</p>
                 </div>
                 <div style="width:100px; text-align:right;">
                     <div class="cover-emblem">DE</div>
@@ -280,19 +388,20 @@
                 </tr>
                 <tr>
                     <td class="cover-card"><span class="cover-card-label">Groups</span><span class="cover-card-value">{{ $groupCount }}</span></td>
-                    <td class="cover-card"><span class="cover-card-label">Difficulty</span><span class="cover-card-value">A1-B1</span></td>
+                    <td class="cover-card"><span class="cover-card-label">Difficulty</span><span class="cover-card-value">A2-B1</span></td>
                     <td class="cover-card"><span class="cover-card-label">Format</span><span class="cover-card-value">Academic PDF</span></td>
                 </tr>
             </table>
 
-            <div class="panel">
-                <p class="panel-title blue">Color-Coding</p>
-                <table class="color-tags">
+            <div class="meta-strip">
+                <table class="meta-grid">
                     <tr>
-                        <td class="tag-green">Core grammar</td>
-                        <td class="tag-blue">Examples</td>
-                        <td class="tag-orange">Exercises</td>
-                        <td class="tag-purple">Arabic notes</td>
+                        <td><span class="meta-label">Focus</span><span class="meta-value">Clear grammar explanation</span></td>
+                        <td><span class="meta-label">Use</span><span class="meta-value">Classroom, self-study, revision</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="meta-label">Exam Targets</span><span class="meta-value">Goethe, telc, ÖSD</span></td>
+                        <td><span class="meta-label">Format</span><span class="meta-value">Printable academic PDF</span></td>
                     </tr>
                 </table>
             </div>
@@ -358,7 +467,13 @@
         <tr>
             <td>
                 <div class="panel">
-                    <p class="panel-title green">Sentences</p>
+                    <div class="section-header">
+                        <div>
+                            <p class="section-index">Page 2</p>
+                            <h2 class="section-heading">Sentences and core examples</h2>
+                            <p class="section-subtitle">Short reference sentences for quick review</p>
+                        </div>
+                    </div>
                     @if(!empty($sentences))
                         <ol class="list">
                             @foreach($sentences as $sentence)
@@ -372,7 +487,13 @@
             </td>
             <td>
                 <div class="panel">
-                    <p class="panel-title purple">Questions & Answers</p>
+                    <div class="section-header">
+                        <div>
+                            <p class="section-index">Review</p>
+                            <h2 class="section-heading">Questions and answers</h2>
+                            <p class="section-subtitle">Fast recall for guided revision</p>
+                        </div>
+                    </div>
                     @if(!empty($questions) || !empty($answers))
                         <table class="qa-table">
                             <thead>
@@ -409,8 +530,13 @@
             @endphp
 
             <div class="panel">
-                <p class="panel-title orange">Scaffolding Exercises</p>
-                <h2 class="group-title">{{ $group['group_title'] ?? ('Exercise Group ' . ($groupIndex + 1)) }}</h2>
+                <div class="section-header">
+                    <div>
+                        <p class="section-index">Practice {{ $groupIndex + 1 }}</p>
+                        <h2 class="section-heading">{{ $group['group_title'] ?? ('Exercise Group ' . ($groupIndex + 1)) }}</h2>
+                        <p class="section-subtitle">Exercise with correction and Arabic explanation</p>
+                    </div>
+                </div>
 
                 @if($count > 0)
                     <table class="exercise-table">
@@ -418,7 +544,7 @@
                             <tr>
                                 <th style="width:6%">#</th>
                                 <th style="width:44%">Exercise</th>
-                                <th style="width:50%">Arabic solution and explanation</th>
+                                <th style="width:50%">Correction and Arabic explanation</th>
                             </tr>
                         </thead>
                         <tbody>
