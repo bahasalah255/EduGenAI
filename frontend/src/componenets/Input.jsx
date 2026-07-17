@@ -173,22 +173,61 @@ const normalizeResult = (result) => {
     }
   }
 
+  const titleText = typeof normalized.title === 'string' && normalized.title.trim()
+    ? normalized.title.trim()
+    : (typeof normalized.topic === 'string' && normalized.topic.trim() ? normalized.topic.trim() : 'Lesson');
+  const levelText = typeof normalized.level === 'string' && normalized.level.trim()
+    ? normalized.level.trim()
+    : 'A2-B1';
+
   // Normalize exercise_groups if present (backend now returns grouped exercises)
   const rawGroups = normalized.exercise_groups || normalized.exerciseGroups || normalized.groups || null;
   const exercise_groups = Array.isArray(rawGroups)
     ? rawGroups.map((g) => ({
-        group_title: cleanText(String(g.group_title ?? g.groupTitle ?? "")),
-        exercises: toArray(g.exercises ?? g.items ?? g.text ?? []),
+        title: cleanText(String(g.title ?? g.group_title ?? g.groupTitle ?? "")),
+        type: cleanText(String(g.type ?? "exercise")),
+        instructions: cleanText(String(g.instructions ?? "")),
+        questions: toArray(g.questions ?? g.exercises ?? g.items ?? g.text ?? []),
+        answers: toArray(g.answers ?? []),
         solutions_arabic: toArray(g.solutions_arabic ?? g.solutionsArabic ?? g.solutions ?? []),
       }))
     : [];
+
+  const normalizedGrammarPoints = toArray(normalized.grammar_points);
+  const normalizedExamples = toArray(normalized.examples);
+  const normalizedVocabulary = Array.isArray(normalized.vocabulary)
+    ? normalized.vocabulary
+        .map((item) => ({
+          german: cleanText(String(item?.german ?? item?.word ?? item?.term ?? "")),
+          arabic: cleanText(String(item?.arabic ?? item?.meaning_arabic ?? item?.translation ?? "")),
+          example: cleanText(String(item?.example ?? item?.example_german ?? "")),
+          pronunciation: cleanText(String(item?.pronunciation ?? item?.pronunciation_notes ?? "")),
+        }))
+        .filter((item) => item.german || item.arabic || item.example)
+    : [];
+
+  const learning_objectives = toArray(normalized.learning_objectives);
+  const common_mistakes = Array.isArray(normalized.common_mistakes)
+    ? normalized.common_mistakes.map((cm) => ({
+        mistake: cleanText(String(cm.mistake ?? "")),
+        correction: cleanText(String(cm.correction ?? "")),
+        explanation_arabic: cleanText(String(cm.explanation_arabic ?? cm.explanation ?? "")),
+      }))
+    : [];
+  const usage_notes = toArray(normalized.usage_notes);
+  const grammar_tips = toArray(normalized.grammar_tips);
+  const memory_tricks = toArray(normalized.memory_tricks);
+  const summary = cleanText(String(normalized.summary ?? normalized.final_summary ?? ""));
 
   // Flatten exercises/solutions if top-level arrays are missing
   const topExercises = toArray(normalized.exercises);
   const topSolutions = toArray(normalized.solutions_arabic);
 
-  const flatExercises = topExercises.length > 0 ? topExercises : exercise_groups.flatMap((g) => g.exercises || []);
+  const flatExercises = topExercises.length > 0 ? topExercises : exercise_groups.flatMap((g) => g.questions || []);
   const flatSolutions = topSolutions.length > 0 ? topSolutions : exercise_groups.flatMap((g) => g.solutions_arabic || []);
+  const flatAnswers = Array.isArray(normalized.answers) && normalized.answers.length > 0
+    ? toArray(normalized.answers)
+    : exercise_groups.flatMap((g) => g.answers || []);
 
   // Fallback: if still empty, try extracting arrays directly from the lesson string
   const lessonText = typeof normalized.lesson === "string" ? normalized.lesson : "";
@@ -294,14 +333,25 @@ const normalizeResult = (result) => {
   }
 
   return {
+    title: titleText,
+    level: levelText,
     topic: cleanText(String(normalized.topic ?? "")),
     lesson: cleanText(String(normalized.lesson ?? "")),
+    grammar_points: normalizedGrammarPoints,
+    vocabulary: normalizedVocabulary,
+    examples: normalizedExamples.length > 0 ? normalizedExamples : fallbackSentences,
     sentences: fallbackSentences,
     exercises: (fallbackExercises.length ? fallbackExercises : fallbackExercisesFinal),
     solutions_arabic: fallbackSolutions,
     questions: fallbackQuestions,
-    answers: fallbackAnswers,
+    answers: flatAnswers.length > 0 ? flatAnswers : fallbackAnswers,
     exercise_groups,
+    learning_objectives,
+    common_mistakes,
+    usage_notes,
+    grammar_tips,
+    memory_tricks,
+    summary,
   };
 };
 
@@ -348,35 +398,59 @@ const pairExercisesAndSolutions = (exercises, solutions) => {
 const buildLocalFallbackLesson = (topic) => {
   const topicLabel = topic?.trim() || "German grammar";
 
+  const grammarPoints = [
+    "Achte auf die Funktion der Endung im Satz.",
+    "Prüfe den Artikel vor der Adjektivendung.",
+    "Vergleiche Kasus, Genus und Numerus.",
+  ];
+
+  const vocabulary = [
+    { german: "das Adjektiv", arabic: "الصفة", example: "Das Adjektiv beschreibt ein Nomen." },
+    { german: "die Endung", arabic: "النهاية الصرفية", example: "Die Endung zeigt die grammatische Form." },
+    { german: "der Artikel", arabic: "أداة التعريف", example: "Der Artikel hilft bei der Deklination." },
+  ];
+
+  const examples = [
+    `Ich übe heute das Thema ${topicLabel}.`,
+    "Die Lehrerin erklärt die Regel langsam und deutlich.",
+    "Wir wiederholen die Beispiele im Kurs gemeinsam.",
+  ];
+
+  const exerciseGroups = [
+    {
+      title: "Fill in the blanks",
+      type: "fill_blank",
+      instructions: "Ergänze die passende Form und begründe sie auf Arabisch.",
+      questions: ["Ich ____ Ahmed.", "Das ist ____ gute Idee."],
+      answers: ["bin", "eine"],
+      solutions_arabic: ["لأن الضمير Ich يحتاج bin.", "لأن Idee مؤنث وتحتاج eine."],
+    },
+    {
+      title: "Multiple Choice",
+      type: "multiple_choice",
+      instructions: "Wähle die richtige Antwort.",
+      questions: ["Wir brauchen ____ Lösung."],
+      answers: ["eine"],
+      solutions_arabic: ["لأن Lösung مؤنث، لذا نستخدم eine."],
+    },
+  ];
+
   return {
+    title: topicLabel,
+    level: "A2-B1",
     topic: topicLabel,
     lesson: [
       `Thema: ${topicLabel}`,
-      "شرح عربي: هذا درس محلي احتياطي يظهر عند تعذر الاتصال بالخادم، لكنه يبقى منسقًا ويحتوي على تمارين وحلول عربية.",
+      "شرح عربي: هذا كتاب عمل محلي احتياطي يظهر عند تعذر الاتصال بالخادم، لكنه يبقى منسقًا ويحتوي على تمارين وحلول عربية.",
       "German note: Use this as a clean draft until the live API becomes available again.",
       "Exam Tip: راجع القاعدة مع أمثلة قصيرة قبل الانتقال إلى التمارين الأطول.",
     ].join("\n\n"),
-    sentences: [
-      `Ich übe heute das Thema ${topicLabel}.`,
-      "Die Lehrerin erklärt die Regel langsam und deutlich.",
-      "Wir wiederholen die Beispiele im Kurs gemeinsam.",
-      "Der Test hilft mir, die Regel besser zu verstehen.",
-      "Am Ende schreibe ich die Lösung noch einmal auf.",
-    ],
-    exercises: [
-      "Ergänze den Satz: Ich lese ___ Text.",
-      "Wähle die richtige Form: Das ist ___ gute Idee.",
-      "Setze ein: Wir brauchen ___ Antwort.",
-      "Schreibe den Satz mit dem Thema in einem eigenen Beispiel.",
-      "Korrigiere den Fehler und erkläre ihn kurz auf Arabisch.",
-    ],
-    solutions_arabic: [
-      "الإجابة: den. السبب: المطلوب هنا أداة مناسبة داخل السياق النحوي.",
-      "الإجابة: eine. السبب: هذه صيغة صحيحة مع الاسم المؤنث في هذا المثال.",
-      "الإجابة: eine. السبب: التوافق بين الأداة والاسم هو الأساس هنا.",
-      "الإجابة: اصنع جملة جديدة بنفس القاعدة مع مثال واقعي من حياتك اليومية.",
-      "الإجابة: حدّد الخطأ أولًا ثم اشرح لماذا كان التركيب غير صحيح.",
-    ],
+    grammar_points: grammarPoints,
+    vocabulary,
+    examples,
+    sentences: examples,
+    exercises: exerciseGroups.flatMap((group) => group.questions),
+    solutions_arabic: exerciseGroups.flatMap((group) => group.solutions_arabic),
     questions: [
       "Was ist das Thema dieser Lektion?",
       "Warum ist die Regel nützlich?",
@@ -387,30 +461,7 @@ const buildLocalFallbackLesson = (topic) => {
       "Sie hilft beim Sprechen, Schreiben und in Prüfungen.",
       "Mit kurzen Beispielen, Wiederholung und Korrektur auf Arabisch.",
     ],
-    exercise_groups: [
-      {
-        group_title: "A2 Lückentext",
-        exercises: [
-          "Ergänze: Ich sehe ___ Film.",
-          "Ergänze: Das ist ___ interessante Aufgabe.",
-        ],
-        solutions_arabic: [
-          "الحل: den. السبب: يجب اختيار الشكل الصحيح وفق القاعدة داخل الجملة.",
-          "الحل: eine. السبب: التركيب يحتاج أداة نكرة مع صفة مناسبة.",
-        ],
-      },
-      {
-        group_title: "B1 Satzbildung",
-        exercises: [
-          "Bilde einen Satz mit dem Thema ${topicLabel}.",
-          "Erkläre die Regel in einem kurzen Satz.",
-        ],
-        solutions_arabic: [
-          "الحل: اكتب جملة صحيحة نحويًا مع مثال واضح ومناسب للدرس.",
-          "الحل: اشرح القاعدة بالعربية ثم اربطها بالمثال الألماني.",
-        ],
-      },
-    ],
+    exercise_groups: exerciseGroups,
   };
 };
 
@@ -461,12 +512,11 @@ export default function Input() {
     return normalizeResult(result);
   }, [result]);
 
-  // For UI we show exactly 15 exercises (clean view). The full data
-  // (including grouped exercises) is still sent to the backend for PDF export.
+  // For UI we show the complete set of exercises.
   const displayExercises = useMemo(() => {
     if (!displayResult) return [];
     return Array.isArray(displayResult.exercises)
-      ? displayResult.exercises.slice(0, 15)
+      ? displayResult.exercises
       : [];
   }, [displayResult]);
 
@@ -488,8 +538,32 @@ export default function Input() {
   const displaySolutions = useMemo(() => {
     if (!displayResult) return [];
     return Array.isArray(displayResult.solutions_arabic)
-      ? displayResult.solutions_arabic.slice(0, 15)
+      ? displayResult.solutions_arabic
       : [];
+  }, [displayResult]);
+
+  const displayGrammarPoints = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.grammar_points) ? displayResult.grammar_points : [];
+  }, [displayResult]);
+
+  const displayVocabulary = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.vocabulary) ? displayResult.vocabulary : [];
+  }, [displayResult]);
+
+  const displayExamples = useMemo(() => {
+    if (!displayResult) return [];
+    if (Array.isArray(displayResult.examples) && displayResult.examples.length > 0) {
+      return displayResult.examples;
+    }
+
+    return Array.isArray(displayResult.sentences) ? displayResult.sentences : [];
+  }, [displayResult]);
+
+  const displayExerciseGroups = useMemo(() => {
+    if (!displayResult) return [];
+    return Array.isArray(displayResult.exercise_groups) ? displayResult.exercise_groups : [];
   }, [displayResult]);
 
   const exerciseSolutionPairs = useMemo(() => {
@@ -574,10 +648,21 @@ export default function Input() {
 
       appendValue(form, "topic", payload.topic ?? topic);
       appendValue(form, "lesson", payload.lesson ?? "");
+      appendValue(form, "title", payload.title ?? payload.topic ?? topic);
+      appendValue(form, "level", payload.level ?? "A2-B1");
+      appendArray(form, "grammar_points", payload.grammar_points ?? []);
+      appendArray(form, "vocabulary", payload.vocabulary ?? []);
+      appendArray(form, "examples", payload.examples ?? []);
       appendArray(form, "sentences", payload.sentences ?? []);
       appendArray(form, "questions", payload.questions ?? []);
       appendArray(form, "answers", payload.answers ?? []);
       appendArray(form, "exercise_groups", payload.exercise_groups ?? []);
+      appendArray(form, "learning_objectives", payload.learning_objectives ?? []);
+      appendArray(form, "common_mistakes", payload.common_mistakes ?? []);
+      appendArray(form, "usage_notes", payload.usage_notes ?? []);
+      appendArray(form, "grammar_tips", payload.grammar_tips ?? []);
+      appendArray(form, "memory_tricks", payload.memory_tricks ?? []);
+      appendValue(form, "summary", payload.summary ?? "");
 
       document.body.appendChild(form);
       form.submit();
@@ -670,8 +755,8 @@ export default function Input() {
                 <header className="result-header">
                   <div>
                     <p className="input-card__eyebrow">Generated output</p>
-                    <h2 className="result-title">{displayResult.topic || "Untitled lesson"}</h2>
-                    <p className="result-subtitle">A clean lesson draft organized for teaching and quick review.</p>
+                    <h2 className="result-title">{displayResult.title || displayResult.topic || "Untitled lesson"}</h2>
+                    <p className="result-subtitle">{displayResult.level ? `${displayResult.level} • ` : ""}An academic workbook draft organized for teaching and quick review.</p>
                   </div>
 
                   <button type="button" className="export-button" onClick={handleExportPDF}>
@@ -681,16 +766,20 @@ export default function Input() {
 
                 <div className="result-metrics">
                   <div className="metric-card">
+                    <span>Groups</span>
+                    <strong>{displayExerciseGroups.length}</strong>
+                  </div>
+                  <div className="metric-card">
                     <span>Exercises</span>
                     <strong>{displayExercises.length}</strong>
                   </div>
                   <div className="metric-card">
-                    <span>Sentences</span>
-                    <strong>{displayResult.sentences.length}</strong>
+                    <span>Vocabulary</span>
+                    <strong>{displayVocabulary.length}</strong>
                   </div>
                   <div className="metric-card">
-                    <span>Questions</span>
-                    <strong>{displayResult.questions.length}</strong>
+                    <span>Grammar points</span>
+                    <strong>{displayGrammarPoints.length}</strong>
                   </div>
                 </div>
 
@@ -698,6 +787,42 @@ export default function Input() {
                   <article className="result-card result-card--wide">
                     <h3>Lesson overview</h3>
                     {renderLessonParagraphs(displayResult.lesson)}
+                  </article>
+
+                  <article className="result-card">
+                    <h3>Grammar summary</h3>
+                    {renderList(displayGrammarPoints, "No grammar points returned.", "result-list")}
+                  </article>
+
+                  <article className="result-card">
+                    <h3>Vocabulary</h3>
+                    {displayVocabulary.length > 0 ? (
+                      <table className="result-table">
+                        <thead>
+                          <tr>
+                            <th>German</th>
+                            <th>Arabic</th>
+                            <th>Example</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayVocabulary.map((item, index) => (
+                            <tr key={`voc-${index}`}>
+                              <td>{item.german || ""}</td>
+                              <td dir="rtl">{item.arabic || ""}</td>
+                              <td>{item.example || ""}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="muted">No vocabulary returned.</p>
+                    )}
+                  </article>
+
+                  <article className="result-card result-card--wide">
+                    <h3>Examples</h3>
+                    {renderList(displayExamples, "No examples returned.", "result-list")}
                   </article>
 
                   <article className="result-card">
@@ -738,7 +863,44 @@ export default function Input() {
 
                   <article className="result-card result-card--wide">
                     <h3>Exercise corrections</h3>
-                    {exerciseSolutionPairs.length > 0 ? (
+                    {displayExerciseGroups.length > 0 ? (
+                      displayExerciseGroups.map((group, groupIndex) => {
+                        const questions = Array.isArray(group.questions) ? group.questions : [];
+                        const answers = Array.isArray(group.answers) ? group.answers : [];
+                        const solutions = Array.isArray(group.solutions_arabic) ? group.solutions_arabic : [];
+                        const count = Math.max(questions.length, answers.length, solutions.length);
+
+                        return (
+                          <div className="exercise-solution-grid" key={`group-${groupIndex}`}>
+                            <div className="exercise-solution-item">
+                              <p className="pair-title">{group.title || group.group_title || `Group ${groupIndex + 1}`}</p>
+                              <p className="pair-title pair-title--arabic">{group.type || "exercise"}</p>
+                              {group.instructions ? <p className="muted">{group.instructions}</p> : null}
+                              <table className="result-table">
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Question</th>
+                                    <th>Answer</th>
+                                    <th>Arabic explanation</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {Array.from({ length: count }, (_, index) => (
+                                    <tr key={`group-${groupIndex}-row-${index}`}>
+                                      <td>{index + 1}</td>
+                                      <td>{questions[index] || ""}</td>
+                                      <td>{answers[index] || ""}</td>
+                                      <td dir="rtl">{solutions[index] || ""}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : exerciseSolutionPairs.length > 0 ? (
                       <div className="exercise-solution-grid">
                         {exerciseSolutionPairs.map((pair) => (
                           <div className="exercise-solution-item" key={`pair-${pair.index}`}>
